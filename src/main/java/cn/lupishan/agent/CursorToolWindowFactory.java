@@ -1,5 +1,14 @@
 package cn.lupishan.agent;
 
+import java.awt.*;
+import java.io.File;
+
+import javax.swing.*;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.plugins.terminal.ShellTerminalWidget;
+import org.jetbrains.plugins.terminal.TerminalToolWindowManager;
+
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
@@ -8,13 +17,6 @@ import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.plugins.terminal.ShellTerminalWidget;
-import org.jetbrains.plugins.terminal.TerminalToolWindowManager;
-
-import javax.swing.*;
-import java.awt.*;
-import java.io.File;
 
 public class CursorToolWindowFactory implements ToolWindowFactory {
     public static final String TOOL_WINDOW_ID = "Cursor CLI Terminal";
@@ -28,7 +30,6 @@ public class CursorToolWindowFactory implements ToolWindowFactory {
         JPanel panel = new JPanel(new BorderLayout());
         String workDir = project.getBasePath() != null ? project.getBasePath() : System.getProperty("user.home");
 
-        // 仍用 TerminalToolWindowManager 创建 widget（最兼容），但随后马上隐藏底部 Terminal 工具窗
         ShellTerminalWidget widget = TerminalToolWindowManager.getInstance(project)
                 .createLocalShellWidget(workDir, TOOL_WINDOW_ID);
 
@@ -38,7 +39,6 @@ public class CursorToolWindowFactory implements ToolWindowFactory {
         content.putUserData(WIDGET_KEY, widget);
         toolWindow.getContentManager().addContent(content);
 
-        // 关键：把底部 Terminal 工具窗收起，避免用户看到两个终端
         ToolWindow term = ToolWindowManager.getInstance(project).getToolWindow("Terminal");
         if (term != null && term.isVisible()) {
             term.hide(null);
@@ -53,11 +53,9 @@ public class CursorToolWindowFactory implements ToolWindowFactory {
     private void autorun(Project project, ShellTerminalWidget widget, String workDir) {
         String agent = CursorAgentUtils.resolveAgentAbsolutePath(new File(workDir));
         if (agent == null) {
-            // 不再往终端 echo；用 Balloon 更干净
-            CursorAgentUtils.notify(project, "未检测到 'cursor-agent' (CLI)。请先安装并确保其在 PATH 中可用。", NotificationType.WARNING);
+            CursorAgentUtils.notify(project, "cursor-agent cli not found", NotificationType.WARNING);
             return;
         }
-        // 只执行 agent，一行即可；不要 cd/clear/echo，避免被 TUI 记录为历史
         CursorAgentUtils.exec(project, widget, "cursor-agent");
     }
 }
